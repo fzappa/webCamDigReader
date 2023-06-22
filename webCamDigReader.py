@@ -2,6 +2,7 @@ import cv2
 import pytesseract
 import numpy as np
 import csv
+import re
 from datetime import datetime
 import os
 import json
@@ -121,6 +122,20 @@ def load_coordinates():
     with open(coordinates_file, "r") as file:
         rectangles = json.load(file)
 
+
+def convert_frequency(data):
+    # Convert MHz to Hz
+    data = re.sub(r'(\d+(\.\d+)?)(\s*)MHz', lambda match: str(float(match.group(1)) * 1e6), data)
+    
+    # Convert kHz to Hz
+    data = re.sub(r'(\d+(\.\d+)?)(\s*)kHz', lambda match: str(float(match.group(1)) * 1e3), data)
+    
+    # Remove Hz
+    data = re.sub(r'(\d+(\.\d+)?)(\s*)Hz', lambda match: match.group(1), data)
+
+    return data
+
+
 # Capture data from the camera and process the frames
 def capture_data():
     while True:
@@ -140,14 +155,18 @@ def capture_data():
         data_list = []
         for count, rect in enumerate(rectangles, 1):
             data = process_image(frame, rect, args.debug, roi_id=count)
-            # Remove newline characters from the data
             data = data.replace('\n', ' ').replace('\r', '')
+
+            # Convert frequencies to Hz
+            data = convert_frequency(data)
+
             logger.info(f'Data from ROI {count}: {data}')
             data_list.append(data)
 
         with open(output_file, 'a', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow([datetime.now()] + data_list)
+
 
         cap.release()
         time.sleep(delay_time_sec)
