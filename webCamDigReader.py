@@ -89,7 +89,7 @@ def process_image(frame, rect, debug=False, roi_id=0):
     
     # Set Tesseract config
     # custom_config = r'--oem 3 --psm 6 outputbase digits'
-    custom_config = r'-c tessedit_char_whitelist=0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ --psm 6'
+    custom_config = r'-c tessedit_char_whitelist=0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ., --psm 6'
     data = pytesseract.image_to_string(threshold, config=custom_config)
 
     return data
