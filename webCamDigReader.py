@@ -36,20 +36,34 @@ def check_tesseract_path():
         logger.error(f"Could not find Tesseract executable at {pytesseract.pytesseract.tesseract_cmd}. Please check the path and try again.")
         raise Exception("Tesseract executable not found")
 
-# Mouse click event for drawing rectangle
+# Mouse click event for drawing and resizing rectangle
 def click_and_crop(event, x, y, flags, param):
     global rectangles, current_rectangle, cropping, mouse_pos
 
     mouse_pos = (x, y)
 
     if event == cv2.EVENT_LBUTTONDOWN:
-        current_rectangle = [(x, y)]
-        cropping = True
+        # If there is a rectangle and the click is inside it, start resizing
+        if rectangles and rectangles[-1][0][0] < x < rectangles[-1][1][0] and rectangles[-1][0][1] < y < rectangles[-1][1][1]:
+            cropping = False
+            current_rectangle = list(rectangles[-1])
+            rectangles = rectangles[:-1]
+        else:
+            current_rectangle = [(x, y)]
+            cropping = True
+
+    elif event == cv2.EVENT_MOUSEMOVE:
+        # If resizing, update the second point of the rectangle
+        if current_rectangle and not cropping:
+            current_rectangle[1] = (x, y)
 
     elif event == cv2.EVENT_LBUTTONUP:
-        current_rectangle.append((x, y))
-        cropping = False
+        # If cropping, add the second point
+        if cropping:
+            current_rectangle.append((x, y))
+            cropping = False
         rectangles.append(tuple(current_rectangle))
+
 
 # Process the image and extract data from the region of interest
 def process_image(frame, rect, debug=False, roi_id=0):
@@ -123,13 +137,17 @@ def capture_data():
             time.sleep(delay_time_sec)
             continue
 
+        data_list = []
         for count, rect in enumerate(rectangles, 1):
             data = process_image(frame, rect, args.debug, roi_id=count)
+            # Remove newline characters from the data
+            data = data.replace('\n', ' ').replace('\r', '')
             logger.info(f'Data from ROI {count}: {data}')
+            data_list.append(data)
 
-            with open(output_file, 'a', newline='') as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow([datetime.now(), data])
+        with open(output_file, 'a', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow([datetime.now()] + data_list)
 
         cap.release()
         time.sleep(delay_time_sec)
