@@ -10,3 +10,6 @@ pip install -r requirements.txt
 
 python webCamDigReader.py -h
 ```
+
+
+![](resources/01.jpg)
