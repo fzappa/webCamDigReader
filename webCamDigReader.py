@@ -4,6 +4,7 @@ import csv
 import re
 from datetime import datetime
 import os
+import sys
 import json
 import shutil
 import time
@@ -243,6 +244,11 @@ if __name__ == "__main__":
 
 
     args = parser.parse_args()
+
+    # Show help when no parameters are provided
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
 
     camera = args.camera
     delay_time_sec = args.delay
