@@ -1,6 +1,5 @@
 import cv2
 import pytesseract
-import numpy as np
 import csv
 import re
 from datetime import datetime
