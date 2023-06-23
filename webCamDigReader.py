@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 import pytesseract
 import csv
 import re
@@ -37,38 +38,41 @@ def check_tesseract_path():
         logger.error(f"Could not find Tesseract executable at {pytesseract.pytesseract.tesseract_cmd}. Please check the path and try again.")
         raise Exception("Tesseract executable not found")
 
-# Mouse click event for drawing and resizing rectangle
+# Mouse click event for drawing freely
 def click_and_crop(event, x, y, flags, param):
     global rectangles, current_rectangle, cropping, mouse_pos
 
     mouse_pos = (x, y)
 
     if event == cv2.EVENT_LBUTTONDOWN:
-        # If there is a rectangle and the click is inside it, start resizing
-        if rectangles and rectangles[-1][0][0] < x < rectangles[-1][1][0] and rectangles[-1][0][1] < y < rectangles[-1][1][1]:
-            cropping = False
-            current_rectangle = list(rectangles[-1])
-            rectangles = rectangles[:-1]
-        else:
-            current_rectangle = [(x, y)]
-            cropping = True
+        cropping = True
+        current_rectangle = [(x, y)]
 
     elif event == cv2.EVENT_MOUSEMOVE:
-        # If resizing, update the second point of the rectangle
-        if current_rectangle and not cropping:
-            current_rectangle[1] = (x, y)
-
-    elif event == cv2.EVENT_LBUTTONUP:
-        # If cropping, add the second point
+        # If drawing, keep adding points to the current rectangle
         if cropping:
             current_rectangle.append((x, y))
-            cropping = False
-        rectangles.append(tuple(current_rectangle))
+
+    elif event == cv2.EVENT_LBUTTONUP:
+        # Stop drawing
+        cropping = False
+        rectangles.append(current_rectangle)
+
 
 
 # Process the image and extract data from the region of interest
-def process_image(frame, rect, debug=False, roi_id=0):
-    roi = frame[rect[0][1]:rect[1][1], rect[0][0]:rect[1][0]]
+def process_image(frame, points, debug=False, roi_id=0):
+    mask = np.zeros(frame.shape, dtype=np.uint8)
+    roi_corners = np.array([points], dtype=np.int32)
+    channel_count = frame.shape[2]
+    ignore_mask_color = (255,)*channel_count
+    cv2.fillPoly(mask, roi_corners, ignore_mask_color)
+    
+    masked_image = cv2.bitwise_and(frame, mask)
+    
+    # Find the bounding rectangle and extract the ROI
+    x,y,w,h = cv2.boundingRect(np.array([points]))
+    roi = masked_image[y:y+h, x:x+w]
     
     # Save original ROI image if debug is True
     if debug:
@@ -187,16 +191,16 @@ def main():
                 logger.error('Unable to read frame')
                 break
 
-            # Display the drawn rectangles on the frame
-            for rect in rectangles:
-                cv2.rectangle(frame, tuple(rect[0]), tuple(rect[1]), (0, 255, 0), 2)
-            if cropping and len(current_rectangle) == 1:
-                cv2.rectangle(frame, tuple(current_rectangle[0]), mouse_pos, (0, 255, 0), 2)
+            # Display the drawn shapes on the frame
+            for shape in rectangles:
+                cv2.polylines(frame, [np.array(shape)], True, (0, 255, 0), 2)
+            if cropping and len(current_rectangle) > 1:
+                cv2.polylines(frame, [np.array(current_rectangle)], True, (0, 255, 0), 2)
 
             cv2.imshow("image", frame)
             key = cv2.waitKey(1) & 0xFF
 
-            # Reset all rectangles if 'r' is pressed
+            # Reset all shapes if 'r' is pressed
             if key == ord("r"):
                 rectangles = []
 
