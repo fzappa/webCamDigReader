@@ -167,13 +167,28 @@ def capture_data():
             logger.info(f'Data from ROI {count}: {data}')
             data_list.append(data)
 
+            # Draw the rectangle directly on the frame
+            cv2.polylines(frame, [np.array(rect)], True, (0, 255, 0), 2)
+
         with open(output_file, 'a', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow([datetime.now()] + data_list)
 
+        # Display the frame
+        cv2.imshow("image", frame)
+        key = cv2.waitKey(1) & 0xFF
+
+        # Quit the application if 'q' is pressed
+        if key == ord("q"):
+            cap.release()
+            cv2.destroyAllWindows()
+            break
 
         cap.release()
         time.sleep(delay_time_sec)
+
+
+
 
 # Main function
 def main():
@@ -208,6 +223,12 @@ def main():
             elif key == ord("s"):
                 save_coordinates()
                 break
+
+            # Quit the application if 'q' is pressed
+            elif key == ord("q"):
+                cap.release()
+                cv2.destroyAllWindows()
+                sys.exit()
 
         cap.release()
         cv2.destroyAllWindows()
