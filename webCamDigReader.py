@@ -104,7 +104,7 @@ def process_image(frame, points, debug=False, roi_id=0):
     
     # Save threshold image if debug is True
     if debug:
-        cv2.imwrite(f'roi_{roi_id}_threshold.png', threshold)
+        cv2.imwrite(f'roi_{roi_id}_{datetime.now()}_threshold.png', threshold)
     
     # Set Tesseract config
     # custom_config = r'--oem 3 --psm 6 outputbase digits'
@@ -142,51 +142,54 @@ def convert_frequency(data):
 
 # Capture data from the camera and process the frames
 def capture_data():
-    while True:
-        cap = cv2.VideoCapture(camera)
-        if not cap.isOpened():
-            logger.error('Unable to open the camera')
-            time.sleep(delay_time_sec)
-            continue
+    cap = cv2.VideoCapture(camera)
+    if not cap.isOpened():
+        logger.error('Unable to open the camera')
+        time.sleep(delay_time_sec)
+        return
 
+    last_capture = time.time()
+
+    while True:
         ret, frame = cap.read()
         if not ret:
             logger.error('Unable to read frame')
-            cap.release()
-            time.sleep(delay_time_sec)
-            continue
+            break
 
-        data_list = []
-        for count, rect in enumerate(rectangles, 1):
-            data = process_image(frame, rect, args.debug, roi_id=count)
-            data = data.replace('\n', ' ').replace('\r', '')
+        display_frame = frame.copy()
 
-            # Convert frequencies to Hz
-            data = convert_frequency(data)
+        # Draw the rectangles on every frame
+        for rect in rectangles:
+            cv2.polylines(display_frame, [np.array(rect)], True, (0, 255, 0), 2)
 
-            logger.info(f'Data from ROI {count}: {data}')
-            data_list.append(data)
+        # Check if it's time to capture data
+        if time.time() - last_capture >= delay_time_sec:
+            last_capture = time.time()
+            data_list = []
+            for count, rect in enumerate(rectangles, 1):
+                data = process_image(frame, rect, args.debug, roi_id=count)
+                data = data.replace('\n', ' ').replace('\r', '')
 
-            # Draw the rectangle directly on the frame
-            cv2.polylines(frame, [np.array(rect)], True, (0, 255, 0), 2)
+                # Convert frequencies to Hz
+                data = convert_frequency(data)
 
-        with open(output_file, 'a', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow([datetime.now()] + data_list)
+                logger.info(f'Data from ROI {count}: {data}')
+                data_list.append(data)
 
-        # Display the frame
-        cv2.imshow("image", frame)
+            with open(output_file, 'a', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow([datetime.now()] + data_list)
+
+        # Display the frame with the rectangle
+        cv2.imshow("image", display_frame)
         key = cv2.waitKey(1) & 0xFF
 
         # Quit the application if 'q' is pressed
         if key == ord("q"):
-            cap.release()
-            cv2.destroyAllWindows()
             break
 
-        cap.release()
-        time.sleep(delay_time_sec)
-
+    cap.release()
+    cv2.destroyAllWindows()
 
 
 
