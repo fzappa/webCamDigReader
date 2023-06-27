@@ -59,6 +59,12 @@ def click_and_crop(event, x, y, flags, param):
         rectangles.append(current_rectangle)
 
 
+def adjust_gamma(image, gamma=1.0):
+    invGamma = 1.0 / gamma
+    table = np.array([((i / 255.0) ** invGamma) * 255
+                      for i in np.arange(0, 256)]).astype("uint8")
+    return cv2.LUT(image, table)
+
 
 # Process the image and extract data from the region of interest
 def process_image(frame, points, debug=False, roi_id=0):
@@ -94,7 +100,13 @@ def process_image(frame, points, debug=False, roi_id=0):
     
     # Apply Gaussian blur to remove noise
     gray = cv2.GaussianBlur(gray, (5, 5), 0)
-    
+
+    # Equalize
+    gray = cv2.equalizeHist(gray)
+
+    # Adjust brightness
+    gray = adjust_gamma(gray, gamma_value)
+
     # Save blurred image if debug is True
     if debug:
         cv2.imwrite(f'roi_{roi_id}_blurred.png', gray)
@@ -197,13 +209,17 @@ def capture_data():
 def main():
     global rectangles, current_rectangle, cropping, mouse_pos
 
-    if not os.path.exists(coordinates_file):
+    if os.path.exists(coordinates_file):
+        load_coordinates()
+
+    while len(rectangles) != num_regions:
+        rectangles = []
         cv2.namedWindow("image")
         cv2.setMouseCallback("image", click_and_crop)
 
         cap = cv2.VideoCapture(camera)
 
-        while True:
+        while len(rectangles) != num_regions:
             ret, frame = cap.read()
             if not ret:
                 logger.error('Unable to read frame')
@@ -222,8 +238,8 @@ def main():
             if key == ord("r"):
                 rectangles = []
 
-            # Break from the loop and save to file if 's' is pressed
-            elif key == ord("s"):
+            # Save and break from the loop if 's' is pressed or if the correct number of regions are selected
+            elif key == ord("s") or len(rectangles) == num_regions:
                 save_coordinates()
                 break
 
@@ -235,10 +251,12 @@ def main():
 
         cap.release()
         cv2.destroyAllWindows()
-    else:
-        load_coordinates()
 
     capture_data()
+
+
+
+
 
 if __name__ == "__main__":
     description = '''
@@ -254,6 +272,12 @@ if __name__ == "__main__":
         description=textwrap.dedent(description),
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
+
+    parser.add_argument("-r", "--regions", type=int, default=1, 
+                    help="Number of regions to select. Defaults to 1.")
+                    
+    parser.add_argument("-g", "--gamma", type=float, default=1.0, 
+                    help="Gamma adjust. Defaults to 1.")
 
     parser.add_argument("-c", "--camera", type=int, default=1,
                         help="Camera source to use. Defaults to 1.")
@@ -278,6 +302,8 @@ if __name__ == "__main__":
         parser.print_help(sys.stderr)
         sys.exit(1)
 
+    num_regions = args.regions
+    gamma_value = args.gamma
     camera = args.camera
     delay_time_sec = args.delay
     check_tesseract_path()
