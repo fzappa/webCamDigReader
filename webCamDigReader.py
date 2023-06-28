@@ -260,12 +260,18 @@ def main():
 
 if __name__ == "__main__":
     description = '''
-    This script captures and recognizes digits
-    of two screen regions and saves them in a CSV file.
-    On the window selection screen:
-    - Type 'r' to reset;
-    - Type 's' to save;
-    - Type 'q' to quit;
+    WebCamDigReader captures and recognizes 
+    numerical data from designated screen regions, 
+    and subsequently saves the results in a CSV file. 
+    You can define these regions, as well as various 
+    other parameters, to customize your experience.
+
+    On the window selection screen, 
+    you can use the following commands:
+
+    - 'r': Reset all drawn regions
+    - 's': Save your defined regions
+    - 'q': Quit the application
     '''
 
     parser = argparse.ArgumentParser(
@@ -274,25 +280,25 @@ if __name__ == "__main__":
     )
 
     parser.add_argument("-r", "--regions", type=int, default=1, 
-                    help="Number of regions to select. Defaults to 1.")
+                    help="Specify the number of regions to select. Defaults to 1.")
                     
     parser.add_argument("-g", "--gamma", type=float, default=1.0, 
-                    help="Gamma adjust. Defaults to 1.")
+                    help="Adjust the gamma of the image for better brightness. Defaults to 1")
 
-    parser.add_argument("-c", "--camera", type=int, default=1,
-                        help="Camera source to use. Defaults to 1.")
+    parser.add_argument("-c", "--camera", type=int, default=0,
+                        help="Select the camera source. Defaults to 0.")
 
     parser.add_argument("-d", "--delay", type=int, default=10,
-                        help="Delay between frames in seconds. Defaults to 10.")
+                        help="Set the delay between frames in seconds. Defaults to 10.")
 
     parser.add_argument("-f", "--file", type=str, default="rectangles_coordinates.json",
-                        help="Json file with coordinates. Defaults to \"rectangles_coordinates.json\".")
+                        help="Provide the JSON file with coordinates. Defaults to \"rectangles_coordinates.json\" ")
 
     parser.add_argument("-o", "--out", type=str, default="data_captured.csv",
-                        help="Output file with csv. Defaults to \"data_captured.csv\".")
+                        help="Specify the output file for the CSV data. Defaults to \"data_captured.csv\".")
 
     parser.add_argument("-debug", "--debug", action='store_true',
-                    help="Debug mode. If set, intermediate images will be saved during preprocessing.")
+                    help="Enable debug mode. If set, intermediate images will be saved during preprocessing.")
 
 
     args = parser.parse_args()
